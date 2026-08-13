@@ -48,8 +48,11 @@ DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "Root" / "00_config" /
 
 
 def load_config(config_path: str) -> dict:
-    """加载服务器配置，返回 {host, user, port, task_root}"""
-    cp = configparser.ConfigParser()
+    """加载服务器配置，返回 {host, user, port, task_root, password}
+
+    使用 RawConfigParser 避免密码中的 % 等字符被当作插值语法。
+    """
+    cp = configparser.RawConfigParser()
     path = Path(config_path)
     if not path.exists():
         sys.exit(
@@ -64,6 +67,7 @@ def load_config(config_path: str) -> dict:
         "user": cp.get("server", "user", fallback="root").strip(),
         "port": cp.getint("server", "port", fallback=22),
         "task_root": cp.get("server", "task_root", fallback="").strip(),
+        "password": cp.get("server", "password", fallback="").strip(),
     }
 
 
@@ -75,8 +79,8 @@ def load_config(config_path: str) -> dict:
 CHECKS = [
     ("1. 训练进程", """
 echo "---- 进程列表 ----"
-ps aux | grep "yolo detect train" | grep -v grep || echo "无训练进程运行"
-PID=$(pgrep -f "yolo detect train" | head -1)
+ps aux | grep "[y]olo detect train" || echo "无训练进程运行"
+PID=$(pgrep -f "[y]olo detect train" | head -1)
 if [ -n "$PID" ]; then
     echo ""
     echo "运行时长: $(ps -o etime= -p $PID)"
@@ -96,7 +100,8 @@ else
 fi
 """),
     ("4. 训练指标", """
-LATEST=$(ls -t ${TASK_ROOT}/*/dataset/runs/detect/train*/results.csv 2>/dev/null | head -1)
+# 兼容两种目录布局: task/dataset/runs 和 task/数据集名/runs
+LATEST=$(ls -t ${TASK_ROOT}/*/*/runs/detect/train*/results.csv 2>/dev/null | head -1)
 if [ -n "$LATEST" ]; then
     echo "结果文件: $LATEST"
     echo ""
@@ -137,7 +142,7 @@ def main():
             "或运行时指定: --host 1.2.3.4"
         )
 
-    password = args.password
+    password = args.password or cfg["password"]
     if not password:
         password = getpass.getpass(f"服务器密码 ({user}@{host}): ")
 
