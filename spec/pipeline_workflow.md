@@ -170,6 +170,19 @@ result.tar.gz
 | `hdlog.sh` | 实时日志 | 训练服务器 |
 | `stop.sh` | 停止训练 | 训练服务器 |
 | `pack_result.sh` | 训练结果+日志打包 | 训练服务器 |
+| `scripts/check_server_status.py` | 查看服务器训练状态（进程/GPU/日志/指标/磁盘），跨平台 | 本地 Mac/Windows/Docker |
+
+## 服务器状态查看（跨平台）
+
+```bash
+# 首次配置: 编辑 Root/00_config/server.conf 填写服务器 IP
+# 依赖: pip install paramiko
+
+python3 scripts/check_server_status.py              # 读默认配置
+python3 scripts/check_server_status.py --host 2.3.4.5   # 临时换服务器
+```
+
+查看内容：训练进程 / GPU (nvidia-smi) / 最新日志 / 训练指标 (results.csv) / 磁盘空间。
 
 ## 目录约定
 
