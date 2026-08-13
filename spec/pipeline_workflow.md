@@ -145,17 +145,17 @@ cd 0004-20260813-yolov11s
 ## ⑧ 结果打包回传（服务器）
 
 ```bash
-./pack_result.sh    # → result.tar.gz
+./pack_result.sh    # → result_20260813_153022.tar.gz（时间戳命名，不覆盖旧包）
 ```
 
 打包内容：
 ```
-result.tar.gz
+result_时间戳.tar.gz
 ├── train/                # 训练结果（weights/best.pt、results.csv 等）
 └── logs/                 # 训练日志
 ```
 
-下载 `result.tar.gz` 回本地归档分析。
+下载最新的 `result_*.tar.gz` 回本地归档分析。注意服务器脚本遵循铁律（见 CLAUDE.md）：不删除任何文件，重复打包只会新增时间戳包。
 
 ---
 

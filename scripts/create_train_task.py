@@ -313,12 +313,18 @@ echo "训练已停止"
 
 
 def generate_pack_result_sh(dataset_name: str) -> str:
-    """生成 pack_result.sh 内容 —— 打包训练结果"""
+    """生成 pack_result.sh 内容 —— 打包训练结果
+
+    注意（CLAUDE.md 铁律）: 不删除任何文件，输出用时间戳命名
+    """
     return f'''#!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATASET_DIR="${{SCRIPT_DIR}}/dataset"
 LOGS_DIR="${{SCRIPT_DIR}}/logs"
-OUTPUT="${{SCRIPT_DIR}}/result.tar.gz"
+
+# 时间戳命名，不覆盖/删除已有文件
+STAMP=$(/bin/date +%Y%m%d%H%M%S)
+OUTPUT="${{SCRIPT_DIR}}/result_${{STAMP}}.tar.gz"
 
 echo "=== 打包训练结果 ==="
 
@@ -336,8 +342,7 @@ echo "  日志目录: ${{LOGS_DIR}}"
 echo "  输出文件: ${{OUTPUT}}"
 echo ""
 
-# 打包 train 目录 + 训练日志
-rm -f "${{OUTPUT}}"
+# 打包 train 目录 + 训练日志（tar 创建新文件，不删除旧包）
 cd "${{DATASET_DIR}}/runs/detect"
 tar czf "${{OUTPUT}}" \\
     "$(basename "${{RESULT_DIR}}")" \\
@@ -345,6 +350,9 @@ tar czf "${{OUTPUT}}" \\
 
 SIZE=$(du -h "${{OUTPUT}}" | cut -f1)
 echo "完成！${{OUTPUT}} (${{SIZE}})"
+echo ""
+echo "已有的结果包:"
+ls -lh "${{SCRIPT_DIR}}"/result_*.tar.gz 2>/dev/null
 '''
 
 
@@ -374,7 +382,7 @@ imgsz:   {args.imgsz}
    ./stop.sh
 
 4. 打包训练结果:
-   ./pack_result.sh       # 生成 result.tar.gz
+   ./pack_result.sh       # 生成 result_时间戳.tar.gz（不覆盖旧包）
 
 ---- 目录结构 ----
 {task_name}/
@@ -383,7 +391,7 @@ imgsz:   {args.imgsz}
 ├── start.sh                  # 启动训练
 ├── hdlog.sh                  # 查看日志
 ├── stop.sh                   # 停止训练
-├── pack_result.sh            # 打包训练结果 → result.tar.gz
+├── pack_result.sh            # 打包训练结果 → result_时间戳.tar.gz
 └── script/
     ├── train_rv1106_bz.sh         # 训练核心
     └── train_rv1106_bz_execute.sh # nohup 后台启动
