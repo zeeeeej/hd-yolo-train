@@ -10,8 +10,8 @@ Root/06_data_analysis/
 # 公共模型（大文件）
 model/
 
-# 本地服务器配置（含账号密码，不入库；模板见 server.conf.example）
-Root/00_config/server.conf
+# 本地服务器配置（含账号密码，不入库；模板见 Root/00_config/server.conf.example）
+.server.conf.local
 
 # macOS
 .DS_Store

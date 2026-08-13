@@ -7,8 +7,9 @@
 YOLO 目标识别训练流水线项目，目录结构：
 
 ```
+.server.conf.local     # 本地服务器连接配置（gitignored，模板: Root/00_config/server.conf.example）
 Root/
-├── 00_config/          # 全局配置（classes.txt、server.conf）
+├── 00_config/          # 全局配置（classes.txt、server.conf.example）
 ├── 01_raw/             # ① 原始视频（人工）
 ├── 02_label/           # ② 标注（人工）
 ├── 03_label_check/     # ③ 标注检查（人工）

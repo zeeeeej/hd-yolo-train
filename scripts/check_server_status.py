@@ -10,7 +10,8 @@
   5. 磁盘空间
 
 配置:
-  服务器连接信息在 Root/00_config/server.conf，运行脚本时密码交互输入。
+  服务器连接信息在仓库根目录 .server.conf.local
+  （模板: Root/00_config/server.conf.example），运行脚本时密码交互输入。
 
 用法:
   python scripts/check_server_status.py                      # 读取默认配置
@@ -44,7 +45,9 @@ except ModuleNotFoundError:
 # 配置加载
 # ---------------------------------------------------------------------------
 
-DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "Root" / "00_config" / "server.conf"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG = PROJECT_ROOT / ".server.conf.local"
+CONFIG_EXAMPLE = PROJECT_ROOT / "Root" / "00_config" / "server.conf.example"
 
 
 def load_config(config_path: str) -> dict:
@@ -55,11 +58,10 @@ def load_config(config_path: str) -> dict:
     cp = configparser.RawConfigParser()
     path = Path(config_path)
     if not path.exists():
-        example = path.with_suffix(path.suffix + ".example")
         sys.exit(
             f"[错误] 配置文件不存在: {path}\n"
             f"请从模板复制后填写服务器信息:\n"
-            f"  cp {example} {path}\n"
+            f"  cp {CONFIG_EXAMPLE} {path}\n"
             f"  # 然后编辑 {path} 填写 host / password 等"
         )
     cp.read(path, encoding="utf-8")

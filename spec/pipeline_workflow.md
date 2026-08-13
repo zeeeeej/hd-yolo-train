@@ -207,7 +207,7 @@ python3 scripts/analyze_results.py --tasks 0005-20260813-yolov11n 0004-20260813-
 ## 服务器状态查看（跨平台）
 
 ```bash
-# 首次配置: 编辑 Root/00_config/server.conf 填写服务器 IP
+# 首次配置: 复制 Root/00_config/server.conf.example 为仓库根目录 .server.conf.local 并填写服务器 IP
 # 依赖: pip install paramiko
 
 python3 scripts/check_server_status.py              # 读默认配置
@@ -220,11 +220,12 @@ python3 scripts/check_server_status.py --host 2.3.4.5   # 临时换服务器
 
 ```
 ai-yolo-train/
+├── .server.conf.local      # 本地服务器连接配置（含密码，gitignored）
 ├── model/                  # 公共模型（yolo26n.pt）
 ├── scripts/                # 本地/Docker 工具脚本
 ├── spec/                   # 文档
 └── Root/
-    ├── 00_config/          # 全局配置（classes.txt、server.conf）
+    ├── 00_config/          # 全局配置（classes.txt、server.conf.example）
     ├── 01_raw/             # ① 原始视频
     ├── 02_label/           # ② 标注
     ├── 03_label_check/     # ③ 标注检查
