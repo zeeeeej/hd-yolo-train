@@ -1,0 +1,7 @@
+# 全局类别定义
+# 行号 = class_id（从0开始）
+# 此文件为单一数据源，其他位置（02_label、03_label_check 等）的 classes.txt 应与此保持一致
+#
+# 当前状态：测试阶段，仅 1 个类别
+
+drink_hand

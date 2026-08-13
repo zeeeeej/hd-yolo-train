@@ -1,0 +1,20 @@
+# 大数据目录（视频、标注、数据集、训练任务）
+Root/01_raw/
+Root/02_label/
+Root/03_label_check/
+Root/04_dataset/
+Root/05_train/
+Root/06_val/
+
+# macOS
+.DS_Store
+**/._*
+
+# 输出产物
+result.tar.gz
+output/
+
+# Python
+__pycache__/
+*.pyc
+venv/

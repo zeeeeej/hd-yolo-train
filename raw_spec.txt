@@ -1,0 +1,40 @@
+
+整个yolo识别训练流程
+1.获取素材人员拍摄视频按照场景存入01_raw中，比如01_raw/scene_0001 存放了场景为：scene_0001的三个视频
+2.标注人员会标注，比如对于01_raw/scene_0001/0001-2027-07-29.mp4，标注完成后，把结果放在02_label/scene_0001/0001-2027-07-29下
+3.标准检查人员复制上一步标注好的文件到对应目录，比如03_label_check/scene_0001/0001-2027-07-29
+4.训练人员组合上一步03_label_check中不同场景下不同的视频标准 创建出不同的训练集。规则为
+
+（1）如果标注为.xml或者.json格式，都要先转化成.txt格式。
+（2）如果没有对应的jpg文件，则删除。
+（3）创建时的参数有但不限于
+	-训练集/验证集/测试集比例 默认7:2:1
+	-训练集/验证集/测试集里面的正样本/空样本比例（空样本：标注为空的样本，正样本：标注不是空的样本）默认9:1
+（4）训练集格式参考04_dataset/0001_20270812
+（5）类别 比如00_config/classes.txt 默认00_config/classes.txt
+
+
+我们现在进行到了第三步，请创建一个训练集0002_20270812，符合yolo训练的训练集。
+
+如果有脚本放入script/  其他新生成的文件请分类放置。脚本优先python
+
+
+5.训练集准备好了，开始创建训练任务，放在05_train/下
+参考0001-2026-08-11-yolov11n/文件格式，再添加一些命令 比如
+
+-封装start.sh
+// 开启训练
+./train_rv1106_bz_execute.sh /root/bash/rv1106-ultralytics/data/Dataset_All/data.yaml 200
+
+-封装hdlog.sh
+// 查看日志
+ls ./logs -al
+tail -n 200 -f logs/train_20260730092840.log
+
+-封装stop.sh
+// 停止训练
+ps aux | grep "yolo detect train" | grep -v grep
+ps aux | grep "ultralytics" | grep -v grep
+kill -15 12345   # 将 12345 替换为你的 PID
+
+这些最终会打包成0001-2026-08-11-yolov11n.tar.gz上传到训练服务器，解压直接运行start.sh进行训练 。
