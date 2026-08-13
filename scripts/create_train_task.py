@@ -109,6 +109,18 @@ def parse_args() -> argparse.Namespace:
         help="不生成 .tar.gz",
     )
     parser.add_argument(
+        "--export-onnx",
+        action="store_true",
+        default=True,
+        help="pack_result.sh 自动导出 ONNX (默认: 是)",
+    )
+    parser.add_argument(
+        "--no-export-onnx",
+        action="store_false",
+        dest="export_onnx",
+        help="不自动导出 ONNX",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="覆盖已存在的任务目录",
@@ -312,15 +324,22 @@ echo "训练已停止"
 '''
 
 
-def generate_pack_result_sh(dataset_name: str) -> str:
+def generate_pack_result_sh(dataset_name: str, args) -> str:
     """生成 pack_result.sh 内容 —— 打包训练结果
 
-    注意（CLAUDE.md 铁律）: 不删除任何文件，输出用时间戳命名
+    注意（CLAUDE.md 铁律）: 不删除任何文件，输出用时间戳命名。
+    打包前自动导出 ONNX（best.pt → best.onnx，已存在则跳过），导出失败不阻断打包。
     """
+    export_onnx = "1" if args.export_onnx else "0"
     return f'''#!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATASET_DIR="${{SCRIPT_DIR}}/dataset"
 LOGS_DIR="${{SCRIPT_DIR}}/logs"
+
+# ====== 可配置变量 ======
+# 打包前自动导出 ONNX（best.pt → best.onnx），改为 0 则跳过
+EXPORT_ONNX={export_onnx}
+# ========================
 
 # 时间戳命名，不覆盖/删除已有文件
 STAMP=$(/bin/date +%Y%m%d%H%M%S)
@@ -342,6 +361,17 @@ echo "  日志目录: ${{LOGS_DIR}}"
 echo "  输出文件: ${{OUTPUT}}"
 echo ""
 
+# 打包前自动导出 ONNX（导出失败不阻断打包，训练结果仍有效）
+if [ "${{EXPORT_ONNX}}" = "1" ]; then
+    if [ -x "${{SCRIPT_DIR}}/export_onnx.sh" ]; then
+        "${{SCRIPT_DIR}}/export_onnx.sh" || echo "[警告] ONNX 导出失败（打包继续，best.onnx 不在包内）"
+        echo ""
+    else
+        echo "[警告] 未找到 export_onnx.sh，跳过 ONNX 导出"
+        echo ""
+    fi
+fi
+
 # 打包 train 目录 + 训练日志（tar 创建新文件，不删除旧包）
 cd "${{DATASET_DIR}}/runs/detect"
 tar czf "${{OUTPUT}}" \\
@@ -353,6 +383,90 @@ echo "完成！${{OUTPUT}} (${{SIZE}})"
 echo ""
 echo "已有的结果包:"
 ls -lh "${{SCRIPT_DIR}}"/result_*.tar.gz 2>/dev/null
+'''
+
+
+def generate_export_onnx_sh(args) -> str:
+    """生成 export_onnx.sh 内容 —— best.pt → best.onnx 导出
+
+    注意（CLAUDE.md 铁律）: 不删除、不覆盖已有文件；best.onnx 已存在则跳过。
+    由 pack_result.sh 打包前自动调用，也可手动运行: ./export_onnx.sh
+    """
+    return f'''#!/bin/bash
+# 导出 ONNX 模型: dataset/runs/detect/train*/weights/best.pt → best.onnx
+# 铁律: 不删除/不覆盖已有文件。best.onnx 已存在时直接跳过。
+# 由 pack_result.sh 自动调用，也可手动运行: ./export_onnx.sh
+
+# ====== 可配置变量 ======
+CONDA_PATH="{args.conda_path}"
+CONDA_ENV="{args.conda_env}"
+ULTRALYTICS_PATH="{args.ultralytics_path}"
+# ========================
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DATASET_DIR="${{SCRIPT_DIR}}/dataset"
+DATA_YAML="${{DATASET_DIR}}/data.yaml"
+
+echo "=== 导出 ONNX 模型 ==="
+
+# 找到最新的 runs/detect/train* 目录
+RESULT_DIR=$(ls -td "${{DATASET_DIR}}"/runs/detect/train* 2>/dev/null | head -1)
+
+if [ -z "${{RESULT_DIR}}" ]; then
+    echo "[错误] 未找到训练结果: ${{DATASET_DIR}}/runs/detect/train*"
+    echo "请先完成训练 (./start.sh)"
+    exit 1
+fi
+
+BEST_PT="${{RESULT_DIR}}/weights/best.pt"
+BEST_ONNX="${{RESULT_DIR}}/weights/best.onnx"
+
+if [ ! -f "${{BEST_PT}}" ]; then
+    echo "[错误] 未找到权重文件: ${{BEST_PT}}"
+    exit 1
+fi
+
+# 铁律: 已存在的文件绝不覆盖（重复调用安全）
+if [ -f "${{BEST_ONNX}}" ]; then
+    SIZE=$(du -h "${{BEST_ONNX}}" | cut -f1)
+    echo "  best.onnx 已存在: ${{BEST_ONNX}} (${{SIZE}})"
+    if [ -s "${{BEST_ONNX}}" ]; then
+        echo "  按铁律不覆盖，跳过导出"
+    else
+        echo "  [警告] 文件大小为 0，可能上次导出中断"
+        echo "  铁律不允许脚本自动删除；如需重新导出，请手动删除该文件后重跑本脚本"
+    fi
+    exit 0
+fi
+
+if [ ! -f "${{DATA_YAML}}" ]; then
+    echo "[错误] data.yaml 不存在: ${{DATA_YAML}}"
+    exit 1
+fi
+
+source ${{CONDA_PATH}}
+conda activate ${{CONDA_ENV}}
+
+echo "  best.pt:   ${{BEST_PT}}"
+echo "  data.yaml: ${{DATA_YAML}}"
+echo "  输出:      ${{BEST_ONNX}}"
+echo ""
+
+# cd 到数据集目录（data.yaml 的 path: . 相对路径；yolo 在 conda 环境 PATH 上）
+cd "${{DATASET_DIR}}" && \\
+yolo export model="${{BEST_PT}}" format=onnx batch=1 data="${{DATA_YAML}}"
+
+# 成功标志: best.onnx 已生成且非空
+if [ -s "${{BEST_ONNX}}" ]; then
+    SIZE=$(du -h "${{BEST_ONNX}}" | cut -f1)
+    echo ""
+    echo "完成！${{BEST_ONNX}} (${{SIZE}})"
+    exit 0
+else
+    echo ""
+    echo "[错误] ONNX 导出失败: ${{BEST_ONNX}} 未生成"
+    exit 1
+fi
 '''
 
 
@@ -382,7 +496,10 @@ imgsz:   {args.imgsz}
    ./stop.sh
 
 4. 打包训练结果:
-   ./pack_result.sh       # 生成 result_时间戳.tar.gz（不覆盖旧包）
+   ./pack_result.sh       # 生成 result_时间戳.tar.gz（不覆盖旧包；自动导出 ONNX）
+
+5. 导出 ONNX 模型（手动，可选）:
+   ./export_onnx.sh       # best.pt → best.onnx（已存在则跳过，不覆盖）
 
 ---- 目录结构 ----
 {task_name}/
@@ -393,6 +510,7 @@ imgsz:   {args.imgsz}
 ├── hdlog.sh                  # 查看日志
 ├── stop.sh                   # 停止训练
 ├── pack_result.sh            # 打包训练结果 → result_时间戳.tar.gz
+├── export_onnx.sh            # best.pt → best.onnx 导出（pack_result.sh 自动调用）
 └── script/
     ├── train_rv1106_bz.sh         # 训练核心
     └── train_rv1106_bz_execute.sh # nohup 后台启动
@@ -430,6 +548,7 @@ def main():
     print(f"workers:    {args.workers}")
     print(f"batch:      {args.batch}")
     print(f"imgsz:      {args.imgsz}")
+    print(f"export_onnx: {'是' if args.export_onnx else '否'}")
     print()
 
     # 检查输出目录
@@ -460,7 +579,8 @@ def main():
     write_script(task_dir, "start.sh", generate_start_sh(dataset_name, args))
     write_script(task_dir, "hdlog.sh", generate_hdlog_sh(args))
     write_script(task_dir, "stop.sh", generate_stop_sh())
-    write_script(task_dir, "pack_result.sh", generate_pack_result_sh(dataset_name))
+    write_script(task_dir, "pack_result.sh", generate_pack_result_sh(dataset_name, args))
+    write_script(task_dir, "export_onnx.sh", generate_export_onnx_sh(args))
 
     # 3. 公共模型 yolo26n.pt
     #    任务根目录放一份（用户要求，与 script/ 平级）

@@ -122,6 +122,7 @@ python3 scripts/create_train_task.py \
 ├── hdlog.sh                  # 实时日志
 ├── stop.sh                   # 停止训练
 ├── pack_result.sh            # 打包训练结果
+├── export_onnx.sh            # best.pt → best.onnx 导出（pack_result.sh 自动调用）
 ├── README.txt
 └── script/
     ├── train_rv1106_bz.sh         # 训练核心（可配置变量在顶部）
@@ -140,18 +141,19 @@ cd 0004-20260813-yolov11s
 ./start.sh 1        # 指定 epochs（快速测试）
 ./hdlog.sh          # 实时查看日志（自动 tail 最新）
 ./stop.sh           # 停止训练（kill -15 优雅退出）
+./export_onnx.sh    # best.pt → best.onnx 导出（已存在则跳过，不覆盖）
 ```
 
 ## ⑧ 结果打包回传（服务器）
 
 ```bash
-./pack_result.sh    # → result_20260813_153022.tar.gz（时间戳命名，不覆盖旧包）
+./pack_result.sh    # → result_20260813_153022.tar.gz（时间戳命名，不覆盖旧包；打包前自动导出 ONNX）
 ```
 
 打包内容：
 ```
 result_时间戳.tar.gz
-├── train/                # 训练结果（weights/best.pt、results.csv 等）
+├── train/                # 训练结果（weights/best.pt、weights/best.onnx、results.csv 等）
 └── logs/                 # 训练日志
 ```
 
@@ -195,6 +197,7 @@ python3 scripts/analyze_results.py --tasks 0005-20260813-yolov11n 0004-20260813-
 | `hdlog.sh` | 实时日志 | 训练服务器 |
 | `stop.sh` | 停止训练 | 训练服务器 |
 | `pack_result.sh` | 训练结果+日志打包 | 训练服务器 |
+| `export_onnx.sh` | best.pt → best.onnx 导出（pack_result.sh 自动调用，可手动运行） | 训练服务器 |
 | `scripts/check_server_status.py` | 查看服务器训练状态（进程/GPU/日志/指标/磁盘），跨平台 | 本地 Mac/Windows/Docker |
 
 ## 公共模型 model/

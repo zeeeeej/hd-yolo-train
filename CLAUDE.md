@@ -86,7 +86,8 @@ python3 scripts/create_train_task.py \
 
 - `--dataset`、`--name` 必填；`--model` 默认 `yolo11n`，`--epochs` 默认 `200`
 - `--conda-env` 默认 `rv1106-ultralytics`，`--ultralytics-path` 默认 `/root/ultralytics-8.3.39-rv1106`
-- 输出 `05_train/0004-20260813-yolov11s.tar.gz`，内含 `dataset/`、`logs/`、`start.sh`、`hdlog.sh`、`stop.sh`、`pack_result.sh`、`script/`
+- `--no-export-onnx` 可关闭 pack_result.sh 的自动 ONNX 导出（默认开启）
+- 输出 `05_train/0004-20260813-yolov11s.tar.gz`，内含 `dataset/`、`logs/`、`start.sh`、`hdlog.sh`、`stop.sh`、`pack_result.sh`、`export_onnx.sh`、`script/`
 - 自动打包两份 `yolo26n.pt`（任务根目录 + `dataset/` 内）——训练进程 CWD 是 dataset/，ultralytics 只在 CWD 查找，这份才能阻止 AMP 检查时联网下载
 
 ### ⑦ 服务器训练（服务器操作）
@@ -98,15 +99,16 @@ python3 scripts/create_train_task.py \
 ./start.sh 1        # 指定 epochs（快速测试）
 ./hdlog.sh          # 实时查看日志
 ./stop.sh           # 停止训练（kill -15 优雅退出）
+./export_onnx.sh    # best.pt → best.onnx 导出（已存在则跳过，不覆盖）
 ```
 
 ### ⑧ 结果打包回传（服务器脚本）
 
 ```bash
-./pack_result.sh    # → result_时间戳.tar.gz（时间戳命名，不覆盖旧包）
+./pack_result.sh    # → result_时间戳.tar.gz（时间戳命名，不覆盖旧包；打包前自动导出 ONNX）
 ```
 
-打包内容：`train/`（weights/best.pt、results.csv、产物图）+ `logs/`。
+打包内容：`train/`（weights/best.pt、**weights/best.onnx**、results.csv、产物图）+ `logs/`。
 下载最新 `result_*.tar.gz` 回本地 `05_train/任务名/`。
 
 ### ⑨ 结果分析（脚本）
@@ -133,7 +135,7 @@ python3 scripts/check_server_status.py --host 2.3.4.5   # 临时换服务器
 
 ## 铁律：训练服务器文件操作规则
 
-运行在训练服务器里的脚本和代码（start.sh / hdlog.sh / stop.sh / pack_result.sh / train_rv1106_bz.sh / train_rv1106_bz_execute.sh 以及未来所有部署到服务器的脚本）必须遵循：
+运行在训练服务器里的脚本和代码（start.sh / hdlog.sh / stop.sh / pack_result.sh / export_onnx.sh / train_rv1106_bz.sh / train_rv1106_bz_execute.sh 以及未来所有部署到服务器的脚本）必须遵循：
 
 1. **当前任务文件夹内**：脚本/代码可以创建文件、移动文件，**不可以删除文件**。
 2. **当前任务文件夹外**：绝对禁止所有脚本/代码修改、删除、移动任何任务文件。
