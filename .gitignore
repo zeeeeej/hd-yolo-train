@@ -1,11 +1,13 @@
 # 大数据目录（视频、标注、数据集、训练任务）
-Root/01_raw/
-Root/02_label/
-Root/03_label_check/
-Root/04_dataset/
-Root/05_train/
-Root/06_val/
-Root/06_data_analysis/
+# 只提交 .gitkeep 保留目录结构，内容不入库
+Root/01_raw/*
+Root/02_label/*
+Root/03_label_check/*
+Root/04_dataset/*
+Root/05_train/*
+Root/06_val/*
+Root/06_data_analysis/*
+!Root/*/.gitkeep
 
 # 公共模型（大文件）
 model/
