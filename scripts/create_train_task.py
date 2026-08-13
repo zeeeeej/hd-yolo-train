@@ -387,6 +387,7 @@ imgsz:   {args.imgsz}
 ---- 目录结构 ----
 {task_name}/
 ├── dataset/                  # 数据集（原 {dataset_name}，训练结果在 runs/ 下）
+├── yolo26n.pt                # 公共模型（防止服务器 AMP 检查联网下载）
 ├── logs/                     # 训练日志
 ├── start.sh                  # 启动训练
 ├── hdlog.sh                  # 查看日志
@@ -461,12 +462,26 @@ def main():
     write_script(task_dir, "stop.sh", generate_stop_sh())
     write_script(task_dir, "pack_result.sh", generate_pack_result_sh(dataset_name))
 
-    # 3. README
+    # 3. 公共模型 yolo26n.pt
+    #    任务根目录放一份（用户要求，与 script/ 平级）
+    #    dataset/ 再放一份 —— 训练进程 CWD 是 dataset/，ultralytics 只在 CWD 查找，
+    #    这一份才能真正阻止 AMP 检查时从 GitHub 下载
+    print(f"\n--- 公共模型 ---")
+    yolo26n_src = Path(__file__).resolve().parent.parent / "model" / "yolo26n.pt"
+    if yolo26n_src.exists():
+        shutil.copy2(yolo26n_src, task_dir / "yolo26n.pt")
+        print(f"  复制: → {task_dir.name}/yolo26n.pt")
+        shutil.copy2(yolo26n_src, task_dir / "dataset" / "yolo26n.pt")
+        print(f"  复制: → {task_dir.name}/dataset/yolo26n.pt (训练 CWD，阻止 AMP 下载)")
+    else:
+        print(f"  [警告] 未找到 {yolo26n_src}，跳过（服务器训练时可能需要联网下载）")
+
+    # 4. README
     readme = generate_readme(dataset_name, args.name, args)
     (task_dir / "README.txt").write_text(readme, encoding="utf-8")
     print(f"  写入: README.txt")
 
-    # 4. 打包 tar.gz
+    # 5. 打包 tar.gz
     if args.no_tar:
         print(f"\n[跳过] 不生成 .tar.gz")
     else:

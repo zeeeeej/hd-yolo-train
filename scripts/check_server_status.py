@@ -55,9 +55,12 @@ def load_config(config_path: str) -> dict:
     cp = configparser.RawConfigParser()
     path = Path(config_path)
     if not path.exists():
+        example = path.with_suffix(path.suffix + ".example")
         sys.exit(
             f"[错误] 配置文件不存在: {path}\n"
-            f"请编辑 {path} 填写服务器 IP (host = ...)"
+            f"请从模板复制后填写服务器信息:\n"
+            f"  cp {example} {path}\n"
+            f"  # 然后编辑 {path} 填写 host / password 等"
         )
     cp.read(path, encoding="utf-8")
     if not cp.has_section("server"):

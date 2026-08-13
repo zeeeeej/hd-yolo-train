@@ -3,8 +3,8 @@
 ## 流程总览
 
 ```
-① 素材采集 ──→ ② 标注 ──→ ③ 标注检查 ──→ ④ 创建数据集 ──→ ⑤ 可视化抽查 ──→ ⑥ 创建训练任务 ──→ ⑦ 服务器训练 ──→ ⑧ 结果打包回传
-   (人工)       (人工)       (人工)          (脚本)          (脚本,可选)      (脚本)           (服务器操作)       (服务器脚本)
+① 素材采集 ──→ ② 标注 ──→ ③ 标注检查 ──→ ④ 创建数据集 ──→ ⑤ 可视化抽查 ──→ ⑥ 创建训练任务 ──→ ⑦ 服务器训练 ──→ ⑧ 结果打包回传 ──→ ⑨ 结果分析
+   (人工)       (人工)       (人工)          (脚本)          (脚本,可选)      (脚本)           (服务器操作)       (服务器脚本)       (脚本)
 ```
 
 ---
@@ -159,18 +159,50 @@ result_时间戳.tar.gz
 
 ---
 
+## ⑨ 结果分析（脚本）
+
+```bash
+# 分析单个任务
+python3 scripts/analyze_results.py --tasks 0005-20260813-yolov11n
+
+# 对比多个任务（明确提出对比才使用）
+python3 scripts/analyze_results.py --tasks 0005-20260813-yolov11n 0004-20260813-yolov11s
+```
+
+输出到 `06_data_analysis/{自动命名}/`：
+
+```
+06_data_analysis/0005_vs_0004_20260813/
+├── summary.md             # 汇总报告（任务概览 + 数据集场景 + 最终指标表）
+├── charts/                # 各指标随 epoch 变化的曲线图（多任务叠加对比）
+├── artifacts/{task}/      # 训练产物图（PR/F1 曲线、混淆矩阵、批次样本等）
+└── data/{task}_results.csv
+```
+
+依赖: `pip install matplotlib`
+
+---
+
 ## 工具链总览
 
 | 脚本 | 用途 | 运行位置 |
 |------|------|----------|
 | `scripts/create_dataset.py` | 数据集创建（多场景合并/比例拆分/JSON→YOLO） | 本地/Docker |
 | `scripts/draw_bbox.py` | 标注可视化抽查 | 本地/Docker |
-| `scripts/create_train_task.py` | 训练任务打包（脚本+dataset+tar.gz） | 本地/Docker |
+| `scripts/create_train_task.py` | 训练任务打包（脚本+dataset+yolo26n.pt+tar.gz） | 本地/Docker |
+| `scripts/analyze_results.py` | 训练结果分析（曲线图/产物图/汇总报告） | 本地/Docker |
 | `start.sh` | 启动训练 | 训练服务器 |
 | `hdlog.sh` | 实时日志 | 训练服务器 |
 | `stop.sh` | 停止训练 | 训练服务器 |
 | `pack_result.sh` | 训练结果+日志打包 | 训练服务器 |
 | `scripts/check_server_status.py` | 查看服务器训练状态（进程/GPU/日志/指标/磁盘），跨平台 | 本地 Mac/Windows/Docker |
+
+## 公共模型 model/
+
+`model/yolo26n.pt` 是公共模型（服务器 conda 版 ultralytics 8.4.x 的默认模型，AMP 检查会用到）。
+创建训练任务时自动打包两份：
+- 任务根目录（与 script/ 平级）
+- `dataset/` 内 —— 训练进程 CWD 是 dataset/，ultralytics 只在 CWD 查找模型，这份才能阻止 AMP 检查时联网下载
 
 ## 服务器状态查看（跨平台）
 
@@ -188,14 +220,16 @@ python3 scripts/check_server_status.py --host 2.3.4.5   # 临时换服务器
 
 ```
 ai-yolo-train/
+├── model/                  # 公共模型（yolo26n.pt）
 ├── scripts/                # 本地/Docker 工具脚本
 ├── spec/                   # 文档
 └── Root/
-    ├── 00_config/          # 全局配置（classes.txt 单一数据源）
+    ├── 00_config/          # 全局配置（classes.txt、server.conf）
     ├── 01_raw/             # ① 原始视频
     ├── 02_label/           # ② 标注
     ├── 03_label_check/     # ③ 标注检查
     ├── 04_dataset/         # ④ 数据集
-    ├── 05_train/           # ⑥ 训练任务
+    ├── 05_train/           # ⑥ 训练任务（含回传的 result_*.tar.gz）
+    ├── 06_data_analysis/   # ⑨ 结果分析
     └── 06_val/             # （预留）验证
 ```
